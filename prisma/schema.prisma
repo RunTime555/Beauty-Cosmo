@@ -27,6 +27,32 @@ enum SaleStatus {
   Refunded
 }
 
+enum Role {
+  ADMIN
+  SELLER
+}
+
+// Mirrors Supabase auth.users so we can join/display sellers and manage
+// roles from our own DB. id MUST match the Supabase auth user id.
+model User {
+  id        String   @id
+  email     String   @unique
+  name      String?
+  role      Role     @default(SELLER)
+  createdAt DateTime @default(now())
+
+  sales     Sale[]
+}
+
+// Singleton table (always id = 1) holding store-wide configuration.
+model StoreSettings {
+  id             Int      @id @default(1)
+  storeName      String   @default("Beauty Cosmo Retail")
+  taxRate        Float    @default(8.0)
+  currencySymbol String   @default("$")
+  updatedAt      DateTime @updatedAt
+}
+
 model Product {
   id            String      @id @default(uuid())
   name          String
@@ -48,9 +74,11 @@ model Sale {
   totalAmount Float
   taxAmount   Float
   sellerName  String
+  sellerId    String?
   status      SaleStatus @default(Completed)
   createdAt   DateTime   @default(now())
 
+  seller      User?      @relation(fields: [sellerId], references: [id])
   items       SaleItem[]
 }
 

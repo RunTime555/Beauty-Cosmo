@@ -1,22 +1,14 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Header from '@/components/Header';
+import type { Sale } from '@/lib/types';
 
-interface SaleItem {
-  id: string;
-  quantity: number;
-  price: number;
-  product: { name: string; sku: string };
-}
-
-interface Sale {
-  id: string;
-  sellerName: string;
-  totalAmount: number;
-  status: string;
-  createdAt: string;
-  items: SaleItem[];
-}
+const STATUS_STYLES: Record<string, string> = {
+  Completed: 'bg-emerald-100 text-emerald-800',
+  Pending: 'bg-amber-100 text-amber-800',
+  Refunded: 'bg-rose-100 text-rose-800',
+};
 
 export default function SalesHistoryPage() {
   const [sales, setSales] = useState<Sale[]>([]);
@@ -28,15 +20,13 @@ export default function SalesHistoryPage() {
       .then((data) => {
         if (Array.isArray(data)) setSales(data);
       })
+      .catch((err) => console.error('Failed to load sales:', err))
       .finally(() => setLoading(false));
   }, []);
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-serif font-bold text-[#2B2627]">Sales History</h1>
-        <p className="text-xs text-[#8A8183]">Real-time transaction logs directly from PostgreSQL.</p>
-      </div>
+      <Header title="Sales History" subtitle="Real-time transaction log for your store." />
 
       <div className="bg-white rounded-3xl border border-[#EAE1DA] overflow-hidden shadow-sm">
         <div className="p-4 sm:p-6 border-b border-[#FAF7EF]">
@@ -45,9 +35,11 @@ export default function SalesHistoryPage() {
 
         {loading ? (
           <div className="p-8 text-center text-xs text-[#8A8183]">Loading transactions...</div>
+        ) : sales.length === 0 ? (
+          <div className="p-8 text-center text-xs text-[#8A8183]">No sales recorded yet.</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[600px]">
+            <table className="w-full text-left border-collapse min-w-[640px]">
               <thead>
                 <tr className="bg-[#FAF7EF] text-[10px] font-bold text-[#8A8183] uppercase border-b border-[#EAE1DA]">
                   <th className="p-4 pl-6">Date</th>
@@ -60,22 +52,28 @@ export default function SalesHistoryPage() {
               <tbody className="divide-y divide-[#FAF7EF] text-xs">
                 {sales.map((sale) => (
                   <tr key={sale.id} className="hover:bg-[#FAF7EF]/50">
-                    <td className="p-4 pl-6 font-bold text-[#2B2627]">
-                      {new Date(sale.createdAt).toLocaleDateString()}
+                    <td className="p-4 pl-6 font-bold text-[#2B2627] whitespace-nowrap">
+                      {new Date(sale.createdAt).toLocaleString()}
                     </td>
                     <td className="p-4">
                       {sale.items.map((i) => (
-                        <div key={i.id} className="text-[11px] text-[#2B2627]">
-                          {i.product?.name} (x{i.quantity})
+                        <div key={i.id} className="text-[11px] text-[#2B2627] whitespace-nowrap">
+                          {i.product?.name ?? 'Removed product'} (x{i.quantity})
                         </div>
                       ))}
                     </td>
-                    <td className="p-4 text-[#2B2627] font-medium">{sale.sellerName}</td>
-                    <td className="p-4 font-serif font-bold text-[#2B2627]">
+                    <td className="p-4 text-[#2B2627] font-medium whitespace-nowrap">
+                      {sale.sellerName}
+                    </td>
+                    <td className="p-4 font-serif font-bold text-[#2B2627] whitespace-nowrap">
                       ${sale.totalAmount.toFixed(2)}
                     </td>
                     <td className="p-4 pr-6">
-                      <span className="px-3 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                      <span
+                        className={`px-3 py-1 rounded-full text-[10px] font-bold whitespace-nowrap ${
+                          STATUS_STYLES[sale.status] ?? 'bg-gray-100 text-gray-800'
+                        }`}
+                      >
                         {sale.status}
                       </span>
                     </td>
