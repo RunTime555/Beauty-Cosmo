@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
-import { Plus, X, Loader2 } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Plus, X, Loader2, ImagePlus, Trash2 as TrashIcon } from 'lucide-react';
 import Header from '@/components/Header';
 import ProductCard from '@/components/ProductCard';
 import { useIsAdmin } from '@/lib/user-context';
+import { optimizeImage, ACCEPTED_IMAGE_TYPES, MAX_UPLOAD_SIZE_BYTES } from '@/lib/image-optimize';
 import type { Product } from '@/lib/types';
 
 const CATEGORIES = ['Skincare', 'Fragrance', 'Makeup', 'Cleanser'] as const;
@@ -16,6 +17,7 @@ const emptyForm = {
   costPrice: '',
   sellingPrice: '',
   stockQuantity: '',
+  imageUrl: '',
 };
 
 export default function ProductsPage() {
@@ -30,6 +32,8 @@ export default function ProductsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState(emptyForm);
 
@@ -67,9 +71,52 @@ export default function ProductsPage() {
       costPrice: String(product.costPrice),
       sellingPrice: String(product.sellingPrice),
       stockQuantity: String(product.stockQuantity),
+      imageUrl: product.imageUrl || '',
     });
     setFormError('');
     setIsModalOpen(true);
+  };
+
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-selecting the same file later
+    if (!file) return;
+
+    setFormError('');
+
+    if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+      setFormError('Please choose a JPEG, PNG, WebP, or GIF image.');
+      return;
+    }
+    if (file.size > MAX_UPLOAD_SIZE_BYTES) {
+      setFormError('Image is too large (max 8MB before optimization).');
+      return;
+    }
+
+    setImageUploading(true);
+    try {
+      // Resize/compress in the browser before it ever leaves the device —
+      // keeps uploads small and consistent regardless of the original
+      // photo's resolution (e.g. a 12MP phone photo becomes ~150-300KB).
+      const optimizedBlob = await optimizeImage(file, { maxDimension: 900, quality: 0.82 });
+
+      const uploadForm = new FormData();
+      uploadForm.append('file', optimizedBlob, 'product.jpg');
+
+      const res = await fetch('/api/upload', { method: 'POST', body: uploadForm });
+      const data = await res.json();
+
+      if (res.ok) {
+        setForm((f) => ({ ...f, imageUrl: data.url }));
+      } else {
+        setFormError(data.error || 'Failed to upload image.');
+      }
+    } catch (err) {
+      console.error('Image optimize/upload failed:', err);
+      setFormError('Failed to process image. Please try a different file.');
+    } finally {
+      setImageUploading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -210,6 +257,63 @@ export default function ProductsPage() {
 
             <form onSubmit={handleSubmit} className="space-y-3 text-xs">
               <div>
+                <label className="block text-[#8A8183] font-bold mb-1">Product Photo</label>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept={ACCEPTED_IMAGE_TYPES.join(',')}
+                  onChange={handleImageSelect}
+                  className="hidden"
+                />
+                {form.imageUrl ? (
+                  <div className="relative w-full h-36 rounded-xl overflow-hidden border border-[#EAE1DA] bg-[#FAF7EF]">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={form.imageUrl} alt="Product preview" className="w-full h-full object-cover" />
+                    <div className="absolute top-2 right-2 flex gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-7 h-7 rounded-full bg-white/90 hover:bg-white flex items-center justify-center shadow"
+                        aria-label="Replace photo"
+                      >
+                        <ImagePlus size={13} className="text-[#2B2627]" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setForm((f) => ({ ...f, imageUrl: '' }))}
+                        className="w-7 h-7 rounded-full bg-white/90 hover:bg-white flex items-center justify-center shadow"
+                        aria-label="Remove photo"
+                      >
+                        <TrashIcon size={13} className="text-rose-700" />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={imageUploading}
+                    className="w-full h-36 rounded-xl border-2 border-dashed border-[#EAE1DA] bg-[#FAF7EF] flex flex-col items-center justify-center gap-2 text-[#8A8183] hover:border-[#8C4A5A] hover:text-[#8C4A5A] transition-colors disabled:opacity-60"
+                  >
+                    {imageUploading ? (
+                      <>
+                        <Loader2 size={20} className="animate-spin" />
+                        <span>Optimizing &amp; uploading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <ImagePlus size={20} />
+                        <span>Click to add a photo</span>
+                        <span className="text-[10px] text-[#8A8183]/70">
+                          Automatically resized &amp; compressed
+                        </span>
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+
+              <div>
                 <label className="block text-[#8A8183] font-bold mb-1">Product Name</label>
                 <input
                   required
@@ -303,7 +407,7 @@ export default function ProductsPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={submitting}
+                  disabled={submitting || imageUploading}
                   className="px-4 py-2 bg-[#8C4A5A] text-white rounded-xl font-semibold hover:bg-[#733A48] disabled:opacity-60 flex items-center gap-2"
                 >
                   {submitting && <Loader2 size={14} className="animate-spin" />}

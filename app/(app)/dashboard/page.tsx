@@ -1,13 +1,16 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Package, AlertTriangle, ArrowUpRight, CheckCircle2 } from 'lucide-react';
 import Header from '@/components/Header';
 import ProductCard from '@/components/ProductCard';
 import SalesCart from '@/components/SalesCart';
 import type { CartItem, Product, StoreSettings } from '@/lib/types';
 
-export default function DashboardPage() {
+function DashboardContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [settings, setSettings] = useState<StoreSettings>({
@@ -65,6 +68,22 @@ export default function DashboardPage() {
     loadAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Sidebar "New Sale" button links to /dashboard?new=1 so it does
+  // something meaningful even when you're already on this page: start a
+  // fresh transaction by clearing the current basket, then clean the URL.
+  useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      // Reacting to an external signal (the URL), not syncing component
+      // state to itself — this is the intended use of an effect here.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setCart([]);
+      setCheckoutError('');
+      setSuccessMessage('');
+      router.replace('/dashboard');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const addToCart = (product: Product) => {
     setCheckoutError('');
@@ -235,5 +254,13 @@ export default function DashboardPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={null}>
+      <DashboardContent />
+    </Suspense>
   );
 }

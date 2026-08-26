@@ -1,4 +1,4 @@
-import { redirect } from 'next/navigation';
+﻿import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth';
 import { UserProvider } from '@/lib/user-context';
 import Sidebar from '@/components/Sidebar';
@@ -9,9 +9,6 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Defense in depth: middleware.ts already redirects unauthenticated
-  // requests before they reach this layout, but we never rely on that
-  // alone for a security boundary — verify the session again here.
   const user = await getCurrentUser();
   if (!user) {
     redirect('/login');

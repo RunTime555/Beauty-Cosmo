@@ -141,7 +141,7 @@ export default function Sidebar() {
         {/* Action Button & User Info */}
         <div className="space-y-4 pt-4 border-t border-[#EAE1DA]">
           <Link
-            href="/dashboard"
+            href="/dashboard?new=1"
             onClick={() => setIsOpen(false)}
             className="w-full bg-[#8C4A5A] hover:bg-[#733A48] text-white py-3 rounded-2xl text-xs font-semibold flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.98]"
           >
