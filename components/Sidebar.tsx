@@ -140,14 +140,17 @@ export default function Sidebar() {
 
         {/* Action Button & User Info */}
         <div className="space-y-4 pt-4 border-t border-[#EAE1DA]">
-          <Link
-            href="/dashboard?new=1"
-            onClick={() => setIsOpen(false)}
+          <button
+            type="button"
+            onClick={() => {
+              setIsOpen(false);
+              router.push('/dashboard?new=1');
+            }}
             className="w-full bg-[#8C4A5A] hover:bg-[#733A48] text-white py-3 rounded-2xl text-xs font-semibold flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.98]"
           >
             <Plus size={16} />
             <span>New Sale</span>
-          </Link>
+          </button>
 
           <div className="flex items-center gap-3 pt-2">
             <div className="w-9 h-9 rounded-full bg-[#D4A373] flex items-center justify-center text-white font-bold text-xs shrink-0">
