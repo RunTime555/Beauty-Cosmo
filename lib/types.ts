@@ -67,6 +67,32 @@ export interface StoreSettings {
   currencySymbol: string;
 }
 
+export interface SellerSummary {
+  sellerId: string | null;
+  sellerName: string;
+  totalOrders: number;
+  totalRevenue: number;
+  avgOrderValue: number;
+}
+
+export interface SellerSaleRow {
+  saleId: string;
+  date: string;
+  sellerName: string;
+  productName: string;
+  category: string;
+  quantity: number;
+  amount: number;
+}
+
+export interface AnalyticsPeriod {
+  range: 'all' | 'week' | 'month';
+  anchor: string;
+  label: string;
+  start: string | null;
+  end: string | null;
+}
+
 export interface AnalyticsSummary {
   totalRevenue: number;
   totalGrossProfit: number;
@@ -76,6 +102,9 @@ export interface AnalyticsSummary {
   revenueByDay: { date: string; revenue: number }[];
   revenueByCategory: { category: string; revenue: number }[];
   topProducts: { name: string; unitsSold: number; revenue: number }[];
+  sellerSummary: SellerSummary[];
+  sellerSalesLog: SellerSaleRow[];
+  period: AnalyticsPeriod;
 }
 
 export interface SalesStats {
