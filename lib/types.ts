@@ -1,7 +1,17 @@
 export type Role = 'ADMIN' | 'SELLER';
 
-export type Category = 'Skincare' | 'Fragrance' | 'Makeup' | 'Cleanser' |' Hair_oil' |'Makeup_Material' |' Jewellery' |' Women_clothing' |' wig' |' others';
-
+export type Category =
+  | 'Skincare'
+  | 'Fragrance'
+  | 'Makeup'
+  | 'Cleanser'
+  | 'Hair_oil'
+  | 'Makeup_Material'
+  | 'Jewellery'
+  | 'Women_clothing'
+  | 'wig'
+  | 'others';
+  
 export type StockStatus = 'In_Stock' | 'Low_Stock' | 'Pre_Order';
 
 export type SaleStatus = 'Completed' | 'Pending' | 'Refunded';

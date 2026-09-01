@@ -1,4 +1,15 @@
-const CATEGORIES = ['Skincare', 'Fragrance', 'Makeup', 'Cleanser', ' Hair_oil', 'Makeup_Material', ' Jewellery', ' Women_clothing', ' wig', ' others'] as const;
+const CATEGORIES = [
+  'Skincare',
+  'Fragrance',
+  'Makeup',
+  'Cleanser',
+  'Hair_oil',
+  'Makeup_Material',
+  'Jewellery',
+  'Women_clothing',
+  'wig',
+  'others',
+] as const;
 
 export interface ValidatedProduct {
   name: string;
