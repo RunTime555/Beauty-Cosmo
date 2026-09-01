@@ -8,7 +8,7 @@ import { useIsAdmin } from '@/lib/user-context';
 import { optimizeImage, ACCEPTED_IMAGE_TYPES, MAX_UPLOAD_SIZE_BYTES } from '@/lib/image-optimize';
 import type { Product } from '@/lib/types';
 
-const CATEGORIES = ['Skincare', 'Fragrance', 'Makeup', 'Cleanser'] as const;
+const CATEGORIES = ['Skincare', 'Fragrance', 'Makeup', 'Cleanser', ' Hair_oil', 'Makeup_Material', ' Jewellery', ' Women_clothing', ' wig', ' others'] as const;
 
 const emptyForm = {
   name: '',
