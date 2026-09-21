@@ -29,6 +29,19 @@ export async function GET() {
 }
 
 // POST create a sale and atomically decrement stock.
+//
+// Security/integrity notes:
+//  - Price and totals are NEVER trusted from the client. They're always
+//    recomputed server-side from the product's current sellingPrice and
+//    the store's configured tax rate.
+//  - Quantities are validated as positive integers.
+//  - Stock is decremented with a conditional `updateMany` guarded by
+//    `stockQuantity >= qty`, so two concurrent checkouts can't both
+//    succeed and oversell the same units (closes the race condition).
+//  - If any item doesn't have enough stock, the whole transaction is
+//    rolled back and a clear 409 is returned — nothing oversells silently.
+//  - sellerName/sellerId always come from the authenticated session, not
+//    the request body.
 export async function POST(request: Request) {
   const userOrResponse = await requireUser();
   if (!isSessionUser(userOrResponse)) return userOrResponse;
@@ -42,6 +55,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Cart is empty.' }, { status: 400 });
     }
 
+    // Validate & normalize items, merging duplicate productIds.
     const quantityByProduct = new Map<string, number>();
     for (const raw of rawItems as SaleItemPayload[]) {
       const productId = typeof raw.productId === 'string' ? raw.productId : '';
@@ -64,11 +78,33 @@ export async function POST(request: Request) {
     const settings = await prisma.storeSettings.findUnique({ where: { id: 1 } });
     const taxRate = settings?.taxRate ?? 8.0;
 
+    // Self-heal the User table before recording the sale. The signed-in
+    // session (Supabase Auth) is the source of truth for "who is this,
+    // and what's their role" — that part already works fine even if the
+    // row below is out of sync. But Sale.sellerId is a real foreign key
+    // into our own User table, so if that row doesn't exist yet, or is
+    // stale (e.g. the Supabase Auth account was recreated at some point,
+    // so its internal ID changed even though the email stayed the same),
+    // fix it here instead of letting checkout hard-fail with an opaque
+    // foreign-key error.
+    const existingById = await prisma.user.findUnique({ where: { id: user.id } });
+    if (!existingById) {
+      const existingByEmail = await prisma.user.findUnique({ where: { email: user.email } });
+      if (existingByEmail) {
+        await prisma.user.update({ where: { email: user.email }, data: { id: user.id } });
+      } else {
+        await prisma.user.create({
+          data: { id: user.id, email: user.email, name: user.name, role: user.role },
+        });
+      }
+    }
+
     const transaction = await prisma.$transaction(
       async (tx: Prisma.TransactionClient) => {
         const products = await tx.product.findMany({ where: { id: { in: productIds } } });
         const productById = new Map<string, PrismaProduct>(products.map((p) => [p.id, p]));
 
+        // Verify every product exists and has enough stock BEFORE writing anything.
         for (const [productId, qty] of quantityByProduct) {
           const product = productById.get(productId);
           if (!product) {
@@ -81,6 +117,7 @@ export async function POST(request: Request) {
           }
         }
 
+        // Recompute pricing server-side — never trust client-submitted prices.
         let subtotal = 0;
         const itemsData = [...quantityByProduct].map(([productId, qty]) => {
           const product = productById.get(productId)!;
@@ -100,6 +137,9 @@ export async function POST(request: Request) {
           },
         });
 
+        // Conditional decrement: only succeeds if enough stock is STILL
+        // available at write time. Guards against concurrent checkouts
+        // racing past the earlier read-time check above.
         for (const [productId, qty] of quantityByProduct) {
           const product = productById.get(productId)!;
           const newQuantity = product.stockQuantity - qty;
